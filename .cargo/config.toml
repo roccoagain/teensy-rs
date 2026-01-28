@@ -1,0 +1,9 @@
+[build]
+target = "thumbv7em-none-eabihf"
+
+[target.thumbv7em-none-eabihf]
+runner = "tycmd upload -f elf --wait"
+rustflags = [
+  "-C",
+  "link-arg=-Tt4link.x",
+]

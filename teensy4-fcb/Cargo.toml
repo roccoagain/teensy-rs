@@ -1,0 +1,11 @@
+[package]
+name = "teensy4-fcb"
+version = "0.4.0"
+edition = "2021"
+
+[lib]
+test = false
+doctest = false
+
+[dependencies]
+imxrt-boot-gen = { version = "0.3.0", features = ["imxrt1060"] }

@@ -1,0 +1,16 @@
+target/
+**/*.rs.bk
+
+# Embedded build artifacts (if copied out of target/)
+*.elf
+*.hex
+*.bin
+*.map
+
+# Editor/OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
