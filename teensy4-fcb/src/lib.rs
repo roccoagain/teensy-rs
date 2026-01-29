@@ -2,6 +2,19 @@
 //!
 //! Derived from the upstream teensy4-fcb crate, with the flash size updated
 //! to match the Teensy 4.1's 8MB QSPI.
+//!
+//! Flash chip: Winbond W25Q64JV (64Mbit / 8MB)
+//! 
+//! Key timing notes for W25Q64JV with 0xEB (Fast Read Quad I/O):
+//! - Command: 8 clocks on 1-pad
+//! - Address: 6 clocks on 4-pad (24 bits)
+//! - Mode bits (M7-0): 2 clocks on 4-pad
+//! - Dummy cycles: 4 clocks on 4-pad
+//! - Data: continuous on 4-pad
+//!
+//! The 6 dummy cycles in SEQ_READ accounts for mode bits (2 clocks) + actual
+//! dummy (4 clocks) = 6 total. This works because driving mode bits high
+//! (0xFF from dummy) causes M5-4 ≠ 0b10, exiting continuous read mode.
 
 #![no_std]
 
@@ -29,7 +42,11 @@ use winbond::*;
 
 // Common LUT operands (FlexSPI uses bytes/cycles or address-bits for these fields).
 const ADDRESS_BITS_24: u8 = 0x18;
+const TRANSFER_SIZE_1B: u8 = 0x01;
 const TRANSFER_SIZE_4B: u8 = 0x04;
+
+// W25Q64JV 0xEB timing: mode bits (2 clocks) + dummy (4 clocks) = 6 total on 4-pad.
+// Treating mode bits as dummy works because high bits exit continuous read mode.
 const DUMMY_CYCLES_6: u8 = 0x06;
 
 const SEQ_READ: Sequence = SequenceBuilder::new()
@@ -41,7 +58,7 @@ const SEQ_READ: Sequence = SequenceBuilder::new()
 
 const SEQ_READ_STATUS: Sequence = SequenceBuilder::new()
     .instr(Instr::new(CMD, Pads::One, READ_STATUS_REGISTER_1))
-    .instr(Instr::new(READ, Pads::One, TRANSFER_SIZE_4B))
+    .instr(Instr::new(READ, Pads::One, TRANSFER_SIZE_1B))
     .build();
 
 const SEQ_WRITE_ENABLE: Sequence = SequenceBuilder::new()
@@ -81,13 +98,19 @@ const LUT: LookupTable = LookupTable::new()
 
 const COMMON_CONFIGURATION_BLOCK: flexspi::ConfigurationBlock =
     flexspi::ConfigurationBlock::new(LUT)
+        // Teensy 4.1 has DQS pad connected for FlexSPI A (main boot flash).
+        // LoopbackFromDQSPad allows frequencies up to ~100MHz with good timing margins.
+        // Use LoopbackInternally if DQS is not routed (limits to ~60MHz).
         .read_sample_clk_src(ReadSampleClockSource::LoopbackFromDQSPad)
         .cs_hold_time(0x01)
         .cs_setup_time(0x02)
         .column_address_width(ColumnAddressWidth::OtherDevices)
+        // QE bit is set by PJRC bootloader during initial flash programming.
+        // It's non-volatile in the W25Q64JV status register, so no need to
+        // configure it on every boot.
         .device_mode_configuration(DeviceModeConfiguration::Disabled)
         .wait_time_cfg_commands(WaitTimeConfigurationCommands::disable())
-        .flash_size(SerialFlashRegion::A1, 0x0080_0000)
+        .flash_size(SerialFlashRegion::A1, 0x0080_0000) // 8MB
         .serial_clk_freq(SerialClockFrequency::MHz60)
         .serial_flash_pad_type(FlashPadType::Quad);
 
