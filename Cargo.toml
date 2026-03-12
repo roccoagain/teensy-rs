@@ -3,6 +3,11 @@ name = "teensy-rs"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "teensy-rs"
+test = false
+bench = false
+
 [dependencies]
 teensy4-bsp = { version = "0.5", features = ["rt"] }
 panic-halt = "0.2"
